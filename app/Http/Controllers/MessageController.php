@@ -19,13 +19,22 @@ class MessageController extends Controller
 
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'message' => 'required|string|max:1000',
+        ]);
+
         $message = Message::create([
             'user_id' => auth()->id(),
-            'message' => $request->message
+            'message' => $validated['message']
         ]);
+
+        // Load the user relationship
+        $message->load('user');
 
         broadcast(new MessageSent($message))->toOthers();
 
-        return back();
+        return response()->json([
+            'message' => $message,
+        ]);
     }
 }
