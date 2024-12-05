@@ -2,7 +2,6 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
-window.axios.defaults.withCredentials = true;
 
 window.Echo = new Echo({
     broadcaster: 'reverb',
@@ -26,9 +25,11 @@ window.Echo = new Echo({
                     channel_name: channel.name
                 })
                     .then(response => {
+                        console.log('response', response);
                         callback(null, response.data);
                     })
                     .catch(error => {
+                        console.log('error', error);
                         callback(error);
                     });
             }

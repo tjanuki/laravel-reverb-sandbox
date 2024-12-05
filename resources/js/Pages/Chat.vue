@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import {onMounted, ref} from 'vue'
 import {router, usePage} from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
@@ -41,12 +41,29 @@ onMounted(() => {
     window.Echo.private('chat')
         .listen('MessageSent', (e) => {
             // Add new message to the beginning of the array
+            console.log('Echo event received:', {
+                eventName: 'MessageSent',
+                data: e
+            });
             messages.value.unshift({
                 message: e.message,
                 user: e.user,
                 created_at: new Date().toISOString()
             })
-        })
+        }).subscribed(() => {
+        console.log('Successfully subscribed to chat channel');
+    })
+        .error((error) => {
+            console.error('Echo error:', error);
+        });
+
+    window.Echo.connector.pusher.connection.bind('connected', () => {
+        console.log('Connected to Reverb server');
+    });
+
+    window.Echo.connector.pusher.connection.bind('disconnected', () => {
+        console.error('Disconnected from Reverb server');
+    });
 })
 
 const formatDate = (date) => {

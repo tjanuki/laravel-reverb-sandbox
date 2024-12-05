@@ -33,8 +33,7 @@ class MessageController extends Controller
 
         broadcast(new MessageSent($message))->toOthers();
 
-        return response()->json([
-            'message' => $message,
-        ]);
+        // Return an Inertia response instead of JSON
+        return back()->with('message', 'Message sent successfully.');
     }
 }
