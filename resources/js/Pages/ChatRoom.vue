@@ -1,24 +1,50 @@
+// types.ts
+interface User {
+id: number;
+name: string;
+email: string;
+}
+
+interface Message {
+id: number;
+message: string;
+user: User;
+room_id: number;
+created_at: string;
+}
+
+interface Room {
+id: number;
+name: string;
+users: User[];
+}
+
+// ChatRoom.vue
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import type { Room, Message, User } from '@/types'
 
-const messages = ref([])
+const messages = ref<Message[]>([])
 const newMessage = ref('')
-const users = ref([])
-const room = ref(usePage().props.room)
+const users = ref<User[]>([])
+const room = ref<Room>(usePage().props.room as Room)
 
 const sendMessage = () => {
     if (!newMessage.value.trim()) return
 
-    router.post(`/rooms/${room.value.id}/messages`, {
-        message: newMessage.value
+    router.post(route('rooms.messages.store', { room: room.value.id }), {
+        message: newMessage.value,
+        room_id: room.value.id
     }, {
         preserveScroll: true,
         onSuccess: () => {
             messages.value.unshift({
+                id: Date.now(), // temporary ID
                 message: newMessage.value,
                 user: usePage().props.auth.user,
+                room_id: room.value.id,
                 created_at: new Date().toISOString()
             })
             newMessage.value = ''
@@ -26,22 +52,33 @@ const sendMessage = () => {
     })
 }
 
+const leaveRoom = () => {
+    router.delete(route('rooms.destroy', { room: room.value.id }), {
+        onSuccess: () => router.visit(route('rooms.index'))
+    })
+}
+
 onMounted(() => {
     messages.value = usePage().props.messages
     users.value = usePage().props.users
 
-    // Listen for new messages in this specific room
-    window.Echo.private(`chat.room.${room.value.id}`)
-        .listen('MessageSent', (e) => {
-            messages.value.unshift({
-                message: e.message,
-                user: e.user,
-                created_at: new Date().toISOString()
-            })
+    // Join presence channel for the room
+    window.Echo.join(`room.${room.value.id}`)
+        .here((users: User[]) => {
+            console.log('Present users:', users)
+        })
+        .joining((user: User) => {
+            console.log('User joined:', user)
+        })
+        .leaving((user: User) => {
+            console.log('User left:', user)
+        })
+        .listen('MessageSent', (event: { message: Message }) => {
+            messages.value.unshift(event.message)
         })
 })
 
-const formatDate = (date) => {
+const formatDate = (date: string): string => {
     return new Date(date).toLocaleString()
 }
 </script>
@@ -53,8 +90,16 @@ const formatDate = (date) => {
                 <h2 class="font-semibold text-xl text-gray-800 leading-tight">
                     {{ room.name }}
                 </h2>
-                <div class="text-sm text-gray-500">
-                    Members: {{ room.users.map(u => u.name).join(', ') }}
+                <div class="flex items-center gap-4">
+                    <div class="text-sm text-gray-500">
+                        Members: {{ room.users.map(u => u.name).join(', ') }}
+                    </div>
+                    <button
+                        @click="leaveRoom"
+                        class="px-3 py-1 text-sm text-red-600 hover:text-red-800 transition-colors"
+                    >
+                        Leave Room
+                    </button>
                 </div>
             </div>
         </template>

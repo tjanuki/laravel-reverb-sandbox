@@ -20,25 +20,19 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
+    // Dashboard
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
-});
 
-Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-    Route::get('/chat', [MessageController::class, 'index'])->name('chat');
-    Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
-    Route::post('/messages', [MessageController::class, 'store'])->name('messages.store');
-});
+    // Rooms
+    Route::resource('rooms', RoomController::class);
+    Route::post('/rooms/{room}/messages', [MessageController::class, 'store'])
+        ->name('rooms.messages.store');
 
-Route::middleware(['auth'])->group(function () {
-    // Room routes
-    Route::get('/rooms', [RoomController::class, 'index'])->name('rooms.index');
-    Route::post('/rooms', [RoomController::class, 'store'])->name('rooms.store');
-    Route::get('/rooms/create', [RoomController::class, 'create'])->name('rooms.create');
-    Route::get('/rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
-    Route::delete('/rooms/{room}', [RoomController::class, 'destroy'])->name('rooms.destroy');
-
-    // Room messages
-    Route::post('/rooms/{room}/messages', [MessageController::class, 'store'])->name('rooms.messages.store');
+    // Room membership
+    Route::post('/rooms/{room}/join', [RoomController::class, 'join'])
+        ->name('rooms.join');
+    Route::delete('/rooms/{room}/leave', [RoomController::class, 'leave'])
+        ->name('rooms.leave');
 });
