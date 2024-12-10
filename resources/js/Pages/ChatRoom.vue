@@ -1,30 +1,9 @@
-// types.ts
-interface User {
-id: number;
-name: string;
-email: string;
-}
-
-interface Message {
-id: number;
-message: string;
-user: User;
-room_id: number;
-created_at: string;
-}
-
-interface Room {
-id: number;
-name: string;
-users: User[];
-}
-
-// ChatRoom.vue
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import type { Room, Message, User } from '@/types'
+import {route} from "ziggy-js";
 
 const messages = ref<Message[]>([])
 const newMessage = ref('')

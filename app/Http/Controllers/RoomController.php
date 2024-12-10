@@ -16,7 +16,7 @@ class RoomController extends Controller
         $user = Auth::user();
         return Inertia::render('Rooms/Index', [
             'rooms' => $user->rooms()->with('users')->latest()->get(),
-            'availableUsers' => User::where('id', '!=', $user->id)->get()
+            'availableUsers' => User::where('users.id', '!=', $user->id)->get()
         ]);
     }
 
@@ -65,7 +65,7 @@ class RoomController extends Controller
             'room' => $room,
             'messages' => $messages,
             'availableUsers' => User::whereNotIn('id', $room->users->pluck('id'))->get(),
-            'canManageRoom' => $room->users()->where('id', Auth::id())->exists()
+            'canManageRoom' => $room->users()->where('users.id', Auth::id())->exists()
         ]);
     }
 
@@ -101,7 +101,7 @@ class RoomController extends Controller
             'user_ids.*' => [
                 'required',
                 'exists:users,id',
-                Rule::notIn($room->users->pluck('id')->toArray())
+                Rule::notIn($room->users->pluck('users.id')->toArray())
             ]
         ]);
 
