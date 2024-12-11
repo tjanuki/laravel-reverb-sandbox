@@ -85,6 +85,9 @@ const createRoom = () => {
                             <button
                                 @click="createRoom"
                                 class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                                :class="{
+                                    'cursor-not-allowed opacity-50': !form.name || form.user_ids.length === 0
+                                }"
                                 :disabled="!form.name || form.user_ids.length === 0"
                             >
                                 Create Room

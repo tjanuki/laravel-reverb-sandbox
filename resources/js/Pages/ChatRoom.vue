@@ -3,12 +3,20 @@ import { onMounted, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import type { Room, Message, User } from '@/types'
-import {route} from "ziggy-js";
+import { route } from "ziggy-js"
+
+interface PaginatedMessages {
+    data: Message[];
+    current_page: number;
+    total: number;
+}
 
 const messages = ref<Message[]>([])
 const newMessage = ref('')
 const users = ref<User[]>([])
-const room = ref<Room>(usePage().props.room as Room)
+const page = usePage()
+const auth = page.props.auth as { user: User }
+const room = ref<Room>(page.props.room as Room)
 
 const sendMessage = () => {
     if (!newMessage.value.trim()) return
@@ -22,7 +30,7 @@ const sendMessage = () => {
             messages.value.unshift({
                 id: Date.now(), // temporary ID
                 message: newMessage.value,
-                user: usePage().props.auth.user,
+                user: auth.user,
                 room_id: room.value.id,
                 created_at: new Date().toISOString()
             })
@@ -38,8 +46,10 @@ const leaveRoom = () => {
 }
 
 onMounted(() => {
-    messages.value = usePage().props.messages
-    users.value = usePage().props.users
+    // Access the data array from the paginated messages
+    const paginatedMessages = page.props.messages as PaginatedMessages
+    messages.value = paginatedMessages.data
+    users.value = page.props.availableUsers as User[]
 
     // Join presence channel for the room
     window.Echo.join(`room.${room.value.id}`)
@@ -107,10 +117,13 @@ const formatDate = (date: string): string => {
 
                         <!-- Messages -->
                         <div class="h-96 overflow-y-auto border rounded-lg p-4">
-                            <div v-for="message in messages"
+                            <div v-if="messages.length === 0" class="text-center text-gray-500 py-4">
+                                No messages yet. Start the conversation!
+                            </div>
+                            <div v-else v-for="message in messages"
                                  :key="message.id"
                                  class="mb-4 p-3 rounded-lg"
-                                 :class="{'bg-gray-50': message.user.id === $page.props.auth.user.id}">
+                                 :class="{'bg-gray-50': message.user.id === auth.user.id}">
                                 <div class="flex items-center justify-between mb-1">
                                     <span class="font-bold text-blue-600">{{ message.user.name }}</span>
                                     <span class="text-sm text-gray-500">{{ formatDate(message.created_at) }}</span>
