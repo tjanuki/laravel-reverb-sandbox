@@ -27,13 +27,7 @@ const sendMessage = () => {
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            messages.value.unshift({
-                id: Date.now(), // temporary ID
-                message: newMessage.value,
-                user: auth.user,
-                room_id: room.value.id,
-                created_at: new Date().toISOString()
-            })
+            // Clear the input field immediately
             newMessage.value = ''
         }
     })
@@ -63,12 +57,17 @@ onMounted(() => {
             console.log('User left:', user)
         })
         .listen('MessageSent', (event: { message: Message }) => {
+            // Add the new message at the beginning of the array
             messages.value.unshift(event.message)
         })
 })
 
 const formatDate = (date: string): string => {
-    return new Date(date).toLocaleString()
+    try {
+        return new Date(date).toLocaleString()
+    } catch (e) {
+        return 'Invalid Date'
+    }
 }
 </script>
 
@@ -123,9 +122,9 @@ const formatDate = (date: string): string => {
                             <div v-else v-for="message in messages"
                                  :key="message.id"
                                  class="mb-4 p-3 rounded-lg"
-                                 :class="{'bg-gray-50': message.user.id === auth.user.id}">
+                                 :class="{'bg-gray-50': message.user_id === auth.user.id}">
                                 <div class="flex items-center justify-between mb-1">
-                                    <span class="font-bold text-blue-600">{{ message.user.name }}</span>
+                                    <span class="font-bold text-blue-600">{{ message.user?.name }}</span>
                                     <span class="text-sm text-gray-500">{{ formatDate(message.created_at) }}</span>
                                 </div>
                                 <div class="text-gray-700">{{ message.message }}</div>

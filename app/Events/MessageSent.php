@@ -6,7 +6,6 @@ use App\Models\Message;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -19,7 +18,8 @@ class MessageSent implements ShouldBroadcast
 
     public function __construct(Message $message)
     {
-        $this->message = $message;
+        // Ensure the user relationship is loaded
+        $this->message = $message->load('user');
     }
 
     public function broadcastOn(): array
@@ -32,10 +32,15 @@ class MessageSent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'id' => $this->message->id,
-            'message' => $this->message->message,
-            'user' => $this->message->user,
-            'created_at' => $this->message->created_at
+            'message' => [
+                'id' => $this->message->id,
+                'message' => $this->message->message,
+                'user_id' => $this->message->user_id,
+                'room_id' => $this->message->room_id,
+                'created_at' => $this->message->created_at,
+                'updated_at' => $this->message->updated_at,
+                'user' => $this->message->user
+            ]
         ];
     }
 }
