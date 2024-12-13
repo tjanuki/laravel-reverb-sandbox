@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onUnmounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import TypingIndicator from './TypingIndicator.vue'
 import type { Room, Message, User } from '@/types'
 import { route } from "ziggy-js"
 
@@ -17,6 +18,17 @@ const users = ref<User[]>([])
 const page = usePage()
 const auth = page.props.auth as { user: User }
 const room = ref<Room>(page.props.room as Room)
+const typingUsers = ref<string[]>([])
+const isTyping = ref(false)
+let typingTimeout: NodeJS.Timeout | null = null
+
+const formatDate = (date: string): string => {
+    try {
+        return new Date(date).toLocaleString()
+    } catch (e) {
+        return 'Invalid Date'
+    }
+}
 
 const sendMessage = () => {
     if (!newMessage.value.trim()) return
@@ -27,8 +39,9 @@ const sendMessage = () => {
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            // Clear the input field immediately
             newMessage.value = ''
+            isTyping.value = false
+            if (typingTimeout) clearTimeout(typingTimeout)
         }
     })
 }
@@ -39,8 +52,29 @@ const leaveRoom = () => {
     })
 }
 
+const startTyping = () => {
+    if (!isTyping.value) {
+        isTyping.value = true
+        window.Echo.private(`room.${room.value.id}`)
+            .whisper('typing', {
+                user: auth.user.name
+            })
+    }
+
+    // Reset the timeout
+    if (typingTimeout) clearTimeout(typingTimeout)
+    typingTimeout = setTimeout(() => {
+        isTyping.value = false
+    }, 2000)
+}
+
+// Cleanup typing timeout on component unmount
+onUnmounted(() => {
+    if (typingTimeout) clearTimeout(typingTimeout)
+})
+
 onMounted(() => {
-    // Access the data array from the paginated messages
+    // Initialize messages from paginated data
     const paginatedMessages = page.props.messages as PaginatedMessages
     messages.value = paginatedMessages.data
     users.value = page.props.availableUsers as User[]
@@ -57,18 +91,20 @@ onMounted(() => {
             console.log('User left:', user)
         })
         .listen('MessageSent', (event: { message: Message }) => {
-            // Add the new message at the beginning of the array
             messages.value.unshift(event.message)
         })
-})
 
-const formatDate = (date: string): string => {
-    try {
-        return new Date(date).toLocaleString()
-    } catch (e) {
-        return 'Invalid Date'
-    }
-}
+    // Listen for typing events
+    window.Echo.private(`room.${room.value.id}`)
+        .listenForWhisper('typing', (e: { user: string }) => {
+            if (e.user !== auth.user.name && !typingUsers.value.includes(e.user)) {
+                typingUsers.value.push(e.user)
+                setTimeout(() => {
+                    typingUsers.value = typingUsers.value.filter(user => user !== e.user)
+                }, 2000)
+            }
+        })
+})
 </script>
 
 <template>
@@ -104,14 +140,20 @@ const formatDate = (date: string): string => {
                                 rows="2"
                                 placeholder="Type your message..."
                                 @keyup.enter.prevent="sendMessage"
+                                @input="startTyping"
                             ></textarea>
-                            <button
-                                @click="sendMessage"
-                                class="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                                :disabled="!newMessage.trim()"
-                            >
-                                Send Message
-                            </button>
+                            <div class="flex justify-between items-center mt-2">
+                                <div>
+                                    <TypingIndicator :users="typingUsers" />
+                                </div>
+                                <button
+                                    @click="sendMessage"
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                                    :disabled="!newMessage.trim()"
+                                >
+                                    Send Message
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Messages -->
