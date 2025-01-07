@@ -1,0 +1,82 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: docker/app.dockerfile
+            target: local
+        container_name: app
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        ports:
+            - "5173:5173"
+        volumes:
+            - .:/var/www/html
+            - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+            - ~/.composer/cache:/root/.composer/cache
+        networks:
+            - app-network
+        depends_on:
+            - mysql
+        environment:
+            - CHOKIDAR_USEPOLLING=true
+
+    nginx:
+        build:
+            context: .
+            dockerfile: docker/nginx.dockerfile
+        container_name: nginx
+        ports:
+            - "${NGINX_PORT:-80}:80"
+        volumes:
+            - .:/var/www/html
+            - ./docker/nginx/conf.d:/etc/nginx/conf.d
+        networks:
+            - app-network
+        depends_on:
+            - app
+
+    mysql:
+        image: mysql:8.0
+        container_name: mysql
+        command: --default-authentication-plugin=mysql_native_password
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+            MYSQL_PASSWORD: ${DB_PASSWORD:-root}
+            MYSQL_USER: ${DB_USERNAME:-root}
+        ports:
+            - "${FORWARD_DB_PORT:-3306}:3306"
+        volumes:
+            - mysql-data:/var/lib/mysql
+            - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+        networks:
+            - app-network
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD:-root}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    supervisor:
+        build:
+            context: .
+            dockerfile: docker/supervisor.dockerfile
+        container_name: supervisor
+        volumes:
+            - .:/var/www/html
+            - ./docker/supervisor:/etc/supervisor/conf.d
+        networks:
+            - app-network
+        depends_on:
+            - mysql
+
+networks:
+    app-network:
+        driver: bridge
+
+volumes:
+    mysql-data:
+        driver: local
